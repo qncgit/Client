@@ -1,0 +1,122 @@
+{
+    "server": {
+        "host": "http://118.70.120.55",
+        "port": 8888,
+        "api_token": "H26wPn113vxdd0uMWAhj-YCaqTuFAG_51nF88Jpw",
+        "sync_interval": 60
+    },
+    "scale": {
+        "com_port": "COM1",
+        "baud_rate": 4800,
+        "bytesize": 7,
+        "timeout": 1,
+        "parity": "N",
+        "stop_bits": 1.0
+    },
+    "scale_mode": {
+        "type": "auto",
+        "description": "Kiểu cân: Cân tự động"
+    },
+    "location_label": {
+        "name": "TRẠM CÂN KHAI THÁC ĐÁ"
+    },
+    "display": {
+        "font_size": 15,
+        "language": "vi",
+        "decimal_places": 0
+    },
+    "reset_time": 15,
+    "admin": {
+        "password_hash": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+        "change_password_required": false
+    },
+    "nocodb": {
+        "base": {
+            "name": "Phần Mềm Cân Tự Động",
+            "id": "pl34cru25cc26u5"
+        },
+        "tables": {
+            "table_1": {
+                "name": "Thông tin nhân viên",
+                "id": "mf0s5zf03x5j1ch",
+                "views": {
+                    "view_1": {
+                        "name": "Thongtinnhanvien",
+                        "id": "vwojpftovrpckxzg"
+                    }
+                }
+            },
+            "table_2": {
+                "name": "Thông tin phương tiện",
+                "id": "m23vgq6uz1es4op",
+                "views": {
+                    "view_1": {
+                        "name": "Thongtinphuongtien",
+                        "id": "vwjs8b5aympnyttt"
+                    }
+                }
+            },
+            "table_3": {
+                "name": "Thông tin lệnh cân",
+                "id": "mvmm62k4h8cfpzz",
+                "views": {
+                    "view_1": {
+                        "name": "Thongtinlenhcan",
+                        "id": "vwd411h4xsso5z3j"
+                    }
+                }
+            },
+            "table_4": {
+                "name": "Lịch sử cân",
+                "id": "m8uwm42nxrt5xlg",
+                "views": {
+                    "view_1": {
+                        "name": "Lichsucan",
+                        "id": "vwsoajbeyncp4azi"
+                    },
+                    "view_2": {
+                        "name": "Dangcan",
+                        "id": "vw8mshkkqxq833tm"
+                    }
+                }
+            }
+        }
+    },
+    "camera": {
+        "qr": {
+            "enabled": true,
+            "type": "webcam",
+            "webcam": {
+                "index": 0
+            },
+            "rtsp": {
+                "url": "rtsp://admin:xmlt1234@14.241.75.22:1554/Streaming/Channels/101"
+            }
+        },
+        "surveillance": {
+            "enabled": true,
+            "cameras": [
+                {
+                    "name": "Camera 1",
+                    "rtsp": "rtsp://admin:xmlt1234@14.241.75.22:1554/Streaming/Channels/101",
+                    "enabled": false
+                },
+                {
+                    "name": "Camera 2",
+                    "rtsp": "rtsp://admin:xmlt1234@14.241.75.22:1554/Streaming/Channels/101",
+                    "enabled": false
+                },
+                {
+                    "name": "Camera 3",
+                    "rtsp": "rtsp://admin:xmlt1234@14.241.75.22:1554/Streaming/Channels/101",
+                    "enabled": false
+                },
+                {
+                    "name": "Camera 4",
+                    "rtsp": "rtsp://admin:xmlt1234@14.241.75.22:1554/Streaming/Channels/101",
+                    "enabled": false
+                }
+            ]
+        }
+    }
+}

@@ -1,0 +1,72 @@
+[
+    {
+        "Id": 1,
+        "Họ và tên": "Đặng Chí Sơn",
+        "Năm sinh": "20/02/1998",
+        "Đơn vị": "Tổ giúp việc Tổng Giám đốc",
+        "Chức vụ": "Nhân viên",
+        "Quản lý": null,
+        "Mật khẩu": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+        "Phân quyền": "Admin",
+        "Trạng thái": "Hoạt động",
+        "Số điện thoại": "0965212298",
+        "Mã lái xe": "NBCN.1096",
+        "Label_Mã lái xe": "NBCN.1096 - Đặng Chí Sơn"
+    },
+    {
+        "Id": 4,
+        "Họ và tên": "Nguyễn Văn Tuyên",
+        "Năm sinh": "20/10/1964",
+        "Đơn vị": "Phân xưởng Khai thác đá",
+        "Chức vụ": "Tổ trưởng",
+        "Quản lý": "NBCN.0897 - Vũ Văn Bình",
+        "Mật khẩu": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+        "Phân quyền": "Lái xe",
+        "Trạng thái": "Hoạt động",
+        "Số điện thoại": "0345601964",
+        "Mã lái xe": "NBCN.0906",
+        "Label_Mã lái xe": "NBCN.0906 - Nguyễn Văn Tuyên"
+    },
+    {
+        "Id": 6,
+        "Họ và tên": "Vũ Văn Bình",
+        "Năm sinh": "31/10/1975",
+        "Đơn vị": "Phân xưởng Khai thác đá",
+        "Chức vụ": "Tổ trưởng",
+        "Quản lý": null,
+        "Mật khẩu": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+        "Phân quyền": "Quản lý",
+        "Trạng thái": "Hoạt động",
+        "Số điện thoại": "0869880673",
+        "Mã lái xe": "NBCN.0897",
+        "Label_Mã lái xe": "NBCN.0897 - Vũ Văn Bình"
+    },
+    {
+        "Id": 10,
+        "Họ và tên": "Trần Công Sơn",
+        "Năm sinh": "12/06/1977",
+        "Đơn vị": "0700576529 - CÔNG TY CP XI MĂNG XUÂN THÀNH",
+        "Chức vụ": "Lái xe",
+        "Quản lý": "",
+        "Mật khẩu": null,
+        "Phân quyền": "Lái xe",
+        "Trạng thái": "Hoạt động",
+        "Số điện thoại": "0899231254",
+        "Mã lái xe": "022098000465",
+        "Label_Mã lái xe": "022098000465 - Trần Công Sơn"
+    },
+    {
+        "Id": 45,
+        "Họ và tên": null,
+        "Năm sinh": null,
+        "Đơn vị": null,
+        "Chức vụ": null,
+        "Quản lý": null,
+        "Mật khẩu": null,
+        "Phân quyền": null,
+        "Trạng thái": null,
+        "Số điện thoại": null,
+        "Mã lái xe": null,
+        "Label_Mã lái xe": " - "
+    }
+]

@@ -1,0 +1,66 @@
+[
+    {
+        "Id": 14,
+        "Biển số": "29HC - 00924",
+        "Phân loại": "Nội bộ",
+        "Tự trọng xe": 32000,
+        "Tên gọi tắt": "Xe số 1",
+        "Trạng thái": "Hoạt động"
+    },
+    {
+        "Id": 15,
+        "Biển số": "29HC - 00942",
+        "Phân loại": "Nội bộ",
+        "Tự trọng xe": 32000,
+        "Tên gọi tắt": "Xe số 2",
+        "Trạng thái": "Đang hoạt động"
+    },
+    {
+        "Id": 16,
+        "Biển số": "29HC - 01017",
+        "Phân loại": "Nội bộ",
+        "Tự trọng xe": 32000,
+        "Tên gọi tắt": "Xe số 3",
+        "Trạng thái": "Đang hoạt động"
+    },
+    {
+        "Id": 17,
+        "Biển số": "29HC - 00860",
+        "Phân loại": "Nội bộ",
+        "Tự trọng xe": 32000,
+        "Tên gọi tắt": "Xe số 4",
+        "Trạng thái": "Đang hoạt động"
+    },
+    {
+        "Id": 18,
+        "Biển số": "29HC - 00957",
+        "Phân loại": "Nội bộ",
+        "Tự trọng xe": 32000,
+        "Tên gọi tắt": "Xe số 5",
+        "Trạng thái": "Đang hoạt động"
+    },
+    {
+        "Id": 19,
+        "Biển số": "29HC - 01087",
+        "Phân loại": "Nội bộ",
+        "Tự trọng xe": 32000,
+        "Tên gọi tắt": "Xe số 6",
+        "Trạng thái": "Đang hoạt động"
+    },
+    {
+        "Id": 20,
+        "Biển số": "17C - 20151",
+        "Phân loại": "Nội bộ",
+        "Tự trọng xe": 32000,
+        "Tên gọi tắt": "Xe số 7",
+        "Trạng thái": "Đang hoạt động"
+    },
+    {
+        "Id": 21,
+        "Biển số": "17C - 20174",
+        "Phân loại": "Nội bộ",
+        "Tự trọng xe": 32000,
+        "Tên gọi tắt": "Xe số 8",
+        "Trạng thái": "Đang hoạt động"
+    }
+]
