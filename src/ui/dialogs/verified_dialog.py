@@ -1,41 +1,45 @@
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox
-from PyQt5.QtCore import Qt
-# Thay đổi ở đây
+# qncgit/client/Client-53f2080517b2db6a5fda56d26b9a57e2a1b36cf5/src/ui/dialogs/verified_dialog.py
+from PyQt5.QtGui import QColor
+from qfluentwidgets import SubtitleLabel, LineEdit, MessageBoxBase, CaptionLabel
 from src.utils.helpers import Common
 
-class VerifiedDialog(QDialog):
+class VerifiedDialog(MessageBoxBase):
+    """
+    Hộp thoại xác thực quyền truy cập, sử dụng MessageBoxBase.
+    """
     def __init__(self, correct_hashed_password, parent=None):
         super().__init__(parent)
+        self.titleLabel = SubtitleLabel("Xác thực quyền truy cập", self)
         self.correct_hashed_password = correct_hashed_password
         
-        self.setWindowTitle("Xác thực quyền truy cập")
-        self.setModal(True)
-        self.setMinimumWidth(300)
+        self.password_input = LineEdit(self)
+        self.password_input.setPlaceholderText("Nhập mật khẩu admin...")
 
-        self.label = QLabel("Vui lòng nhập mật khẩu quản trị để tiếp tục:")
-        self.password_input = QLineEdit()
-        self.password_input.setEchoMode(QLineEdit.Password)
+        self.warningLabel = CaptionLabel("Mật khẩu không chính xác!", self)
+        # Thiết lập màu cho cảnh báo (cho cả light/dark theme)
+        self.warningLabel.setTextColor("#cf1010", QColor(255, 28, 32))
+        # Ẩn cảnh báo lúc đầu
+        self.warningLabel.hide()
+
+        # Thêm các widget vào layout của dialog
+        self.viewLayout.addWidget(self.titleLabel)
+        self.viewLayout.addWidget(self.password_input)
+        self.viewLayout.addWidget(self.warningLabel)
         
-        self.confirm_button = QPushButton("Xác nhận")
-        self.error_label = QLabel("")
-        self.error_label.setStyleSheet("color: red;")
+        # Cấu hình các nút bấm
+        self.yesButton.setText("Xác nhận")
+        self.cancelButton.setText("Hủy")
+        self.yesButton.clicked.connect(self.validate)
+        self.password_input.returnPressed.connect(self.validate)
 
-        layout = QVBoxLayout(self)
-        layout.addWidget(self.label)
-        layout.addWidget(self.password_input)
-        layout.addWidget(self.error_label)
-        layout.addWidget(self.confirm_button, alignment=Qt.AlignCenter)
-
-        self.confirm_button.clicked.connect(self.verify_password)
-        self.password_input.returnPressed.connect(self.verify_password)
-
-    def verify_password(self):
+    def validate(self):
         entered_password = self.password_input.text()
-        # Thay đổi ở đây
         hashed_entered_password = Common.hash_password(entered_password)
 
         if hashed_entered_password == self.correct_hashed_password:
-            self.accept()
+            self.warningLabel.hide()
+            super().accept()
         else:
-            self.error_label.setText("Mật khẩu không chính xác!")
+            self.warningLabel.show()
             self.password_input.selectAll()
+            self.password_input.setFocus()

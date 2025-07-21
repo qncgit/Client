@@ -7,7 +7,7 @@
     },
     "scale": {
         "com_port": "COM1",
-        "baud_rate": 4800,
+        "baud_rate": 9600,
         "bytesize": 7,
         "timeout": 1,
         "parity": "N",
