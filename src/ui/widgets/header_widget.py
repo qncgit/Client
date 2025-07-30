@@ -48,15 +48,15 @@ class HeaderWidget(QWidget):
         self.mode_label = BodyLabel("-")
         
         # Sử dụng các label chuyên dụng cho tiêu đề và nội dung
-        info_layout.addWidget(SubtitleLabel("Thời gian:"), 0, 0)
-        info_layout.addWidget(self.time_label, 0, 1)
-        info_layout.addWidget(SubtitleLabel("Trạm cân:"), 1, 0)
-        info_layout.addWidget(self.station_label, 1, 1)
-        info_layout.addWidget(SubtitleLabel("Kiểu cân:"), 2, 0)
-        info_layout.addWidget(self.mode_label, 2, 1)
+        info_layout.addWidget(SubtitleLabel("Thời gian:"), 0, 0, alignment=Qt.AlignRight)
+        info_layout.addWidget(self.time_label, 0, 1, alignment=Qt.AlignRight)
+        info_layout.addWidget(SubtitleLabel("Trạm cân:"), 1, 0, alignment=Qt.AlignRight)
+        info_layout.addWidget(self.station_label, 1, 1, alignment=Qt.AlignRight)
+        info_layout.addWidget(SubtitleLabel("Kiểu cân:"), 2, 0, alignment=Qt.AlignRight)
+        info_layout.addWidget(self.mode_label, 2, 1, alignment=Qt.AlignRight)
         info_layout.setColumnStretch(1, 1)
 
-        layout.addWidget(weight_card, 1)
+        layout.addWidget(weight_card, 4)
         layout.addWidget(info_card, 1)
 
         self.reload_config()

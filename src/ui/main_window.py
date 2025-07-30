@@ -1,10 +1,10 @@
 # qncgit/client/Client-53f2080517b2db6a5fda56d26b9a57e2a1b36cf5/src/ui/main_window.py
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QDesktopWidget
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QDesktopWidget, QSizePolicy
 from PyQt5.QtCore import QTimer, Qt
 from PyQt5.QtGui import QIcon
 
 from qfluentwidgets import (FluentWindow, FluentIcon as FIF, InfoBar, 
-                            InfoBarPosition, Action)
+                            InfoBarPosition, CardWidget)
 
 from src.config.config_manager import ConfigManager
 from src.data.repository import Repository
@@ -48,8 +48,6 @@ class MainWindow(FluentWindow):
         self.init_threads()
         self.connect_signals()
         self.init_timers()
-        # ✨ SỬA ĐỔI: Không cần thêm nút vào title bar nữa
-        # self.add_setting_action() 
 
         self.sync_thread.start()
         self.camera_thread.start()
@@ -68,32 +66,43 @@ class MainWindow(FluentWindow):
         main_layout.setContentsMargins(10, 5, 10, 5)
 
         self.header = HeaderWidget(self.config_manager)
-        self.bottom = BottomWidget()
-        body_layout = QHBoxLayout()
-        body_layout.setSpacing(10)
-
+        self.bottom = BottomWidget()    
         self.step1 = Step1_QRScanWidget()
-        right_column_layout = QVBoxLayout()
-        right_column_layout.setSpacing(10)
         self.step2 = Step2_DriverInfoWidget()
         self.step3 = Step3_VehicleInfoWidget()
         self.step4 = Step4_WeightInfoWidget()
-        right_column_layout.addWidget(self.step2)
-        right_column_layout.addWidget(self.step3)
-        right_column_layout.addWidget(self.step4)
-        right_column_layout.addStretch()
 
-        body_layout.addWidget(self.step1, 5)
-        body_layout.addLayout(right_column_layout, 6)
-        
+        # Bọc các widget bằng CardWidget và thiết lập size policy
+        left_card = CardWidget()
+        left_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        left_layout = QVBoxLayout(left_card)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(10)
+        left_layout.addWidget(self.step1)
+
+        right_card = CardWidget()
+        right_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        right_layout = QVBoxLayout(right_card)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(10)
+        right_layout.addWidget(self.step2)
+        right_layout.addWidget(self.step3)
+        right_layout.addWidget(self.step4)
+
+        # Sử dụng QHBoxLayout để chia tỷ lệ 2:3
+        content_layout = QHBoxLayout()
+        content_layout.setSpacing(10)
+        content_layout.addWidget(left_card)
+        content_layout.addWidget(right_card)
+        content_layout.setStretchFactor(left_card, 2)
+        content_layout.setStretchFactor(right_card, 3)
+
         main_layout.addWidget(self.header)
-        main_layout.addLayout(body_layout, 1)
+        main_layout.addLayout(content_layout, 1)
         main_layout.addWidget(self.bottom)
-        
-    # ✨ SỬA ĐỔI: Xóa hoặc vô hiệu hóa hàm này
-    # def add_setting_action(self):
-    #     self.actionSetting = Action(FIF.SETTING, "Cài đặt", triggered=self.open_settings)
-    #     self.setting_action = self.titleBar.addAction(self.actionSetting)
+
+        # Đặt stretch factor cho layout chính
+        main_layout.setStretchFactor(content_layout, 1)
 
     def init_threads(self):
         self.sync_thread = SyncThread(self.repository, self.config_manager)
@@ -106,9 +115,61 @@ class MainWindow(FluentWindow):
         self.time_updater.start(1000)
 
         self.progress_timer = QTimer(self)
+        self.progress_timer.setInterval(50)  # Cập nhật mỗi 50ms
         self.progress_timer.timeout.connect(self.update_reset_progress)
-        self.controller.inactivity_timer.timeout.connect(lambda: self.progress_timer.start(100))
-    
+        # Kết nối với timer của controller
+        self.controller.inactivity_timer.timeout.connect(self.on_inactivity_timeout)
+
+        self.qr_confirm_timer = QTimer(self)
+        self.qr_confirm_timer.setInterval(5000)  # 5 giây
+        self.qr_confirm_timer.setSingleShot(True)
+        self.qr_confirm_timer.timeout.connect(self.on_qr_confirmed)
+
+    def on_inactivity_timeout(self):
+        """Xử lý khi hết thời gian chờ"""
+        self.progress_timer.stop()
+        self.bottom.update_progress(0, 0)
+        self.controller.reset_process()
+
+    def start_progress_timer(self, _):
+        """Bắt đầu đếm ngược khi quét mã thành công"""
+        self.progress_timer.start()
+
+    def on_qr_decoded(self, _):
+        """Xử lý khi quét mã QR thành công"""
+        print("QR scanned - Waiting for confirmation")
+        # Khoá frame QR
+        self.step1.lock_qr_frame()
+        # Bắt đầu đếm ngược xác nhận
+        self.qr_confirm_timer.start()
+        # Hiển thị trạng thái
+        self.bottom.set_status("Đang xác nhận mã QR...", "blue")
+
+    def on_qr_confirmed(self):
+        """Xử lý sau khi đã xác nhận QR (sau 5s)"""
+        print("QR confirmed - Starting process")
+        # Mở khoá frame QR
+        self.step1.unlock_qr_frame()
+        # Bắt đầu đếm ngược reset
+        self.progress_timer.start()
+        self.bottom.update_progress(100, self.controller.inactivity_timer.interval() / 1000)
+        # Cập nhật trạng thái
+        self.bottom.set_status("Xác nhận mã QR thành công!", "green")
+
+    def update_reset_progress(self):
+        elapsed_ms = self.controller.inactivity_timer.remainingTime()
+        total_ms = self.controller.inactivity_timer.interval()
+        
+        if elapsed_ms > 0 and total_ms > 0:
+            # Đảo ngược logic - progress giảm dần từ 100 về 0
+            progress = int((elapsed_ms / total_ms) * 100)
+            remaining_seconds = elapsed_ms / 1000
+            print(f"Progress: {progress}%, Time: {remaining_seconds}s")  # Debug log
+            self.bottom.update_progress(progress, remaining_seconds)
+        else:
+            self.progress_timer.stop()
+            self.bottom.update_progress(0, 0)
+
     def connect_signals(self):
         # ✨ SỬA ĐỔI: Kết nối tín hiệu từ nút cài đặt mới
         self.bottom.settings_button_clicked.connect(self.open_settings)
@@ -119,6 +180,8 @@ class MainWindow(FluentWindow):
 
         self.camera_thread.frame_update.connect(self.step1.update_camera_frame)
         self.camera_thread.qr_decoded.connect(self.controller.handle_qr_scan)
+        # Thêm kết nối cho sự kiện quét mã thành công
+        self.camera_thread.qr_decoded.connect(self.on_qr_decoded)
 
         self.sync_thread.sync_status_update.connect(self.handle_sync_status)
 
@@ -141,6 +204,8 @@ class MainWindow(FluentWindow):
         self.bottom.update_progress(0, 0)
         if self.progress_timer:
             self.progress_timer.stop()
+        if self.qr_confirm_timer.isActive():
+            self.qr_confirm_timer.stop()
 
     def handle_sync_status(self, message, is_success):
         self.bottom.set_server_status(is_success, message)
@@ -177,15 +242,6 @@ class MainWindow(FluentWindow):
         self.weight_thread.weight_update.connect(self.controller.set_current_weight)
         self.weight_thread.connection_status.connect(self.bottom.set_weight_status)
         self.weight_thread.start()
-
-    def update_reset_progress(self):
-        elapsed_ms = self.controller.inactivity_timer.remainingTime()
-        total_ms = self.controller.inactivity_timer.interval()
-        if elapsed_ms >= 0 and total_ms > 0:
-            progress = 100 - int((elapsed_ms / total_ms) * 100)
-            self.bottom.update_progress(progress, total_ms / 1000 - elapsed_ms / 1000)
-        else:
-            self.bottom.update_progress(0, 0)
 
     def closeEvent(self, event):
         print("Đang đóng ứng dụng...")

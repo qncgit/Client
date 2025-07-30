@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import QWidget, QHBoxLayout
 from PyQt5.QtCore import Qt, pyqtSignal
 # ✨ SỬA ĐỔI: Import thêm TransparentToolButton và sử dụng alias FIF
 from qfluentwidgets import (ProgressBar, IconWidget, CaptionLabel, BodyLabel, 
-                            FluentIcon as FIF, TransparentToolButton)
+                          FluentIcon as FIF, TransparentToolButton, InfoBar)
 
 class BottomWidget(QWidget):
     # ✨ SỬA ĐỔI: Thêm tín hiệu để báo cho cửa sổ chính khi nút được nhấn
@@ -37,13 +37,25 @@ class BottomWidget(QWidget):
         self.set_weight_status(True, "Khởi tạo...")
 
         self.status_label = BodyLabel("Trạng thái: Sẵn sàng quét mã lệnh.")
-        reset_label = BodyLabel("Tự động reset:")
-        self.reset_progress_bar = ProgressBar(self)
-        self.reset_progress_bar.setRange(0, 100)
-        self.reset_progress_bar.setValue(0)
-        self.reset_progress_bar.setFixedSize(150, 5)
-        self.reset_progress_bar.setTextVisible(False)
-
+        reset_label = BodyLabel("Đếm ngược reset:")
+        self.reset_progress = ProgressBar(self)
+        self.reset_progress.setFixedWidth(150)
+        self.reset_progress.setFixedHeight(4)
+        self.reset_progress.setRange(0, 100)
+        self.reset_progress.setValue(0)
+        self.reset_progress.setTextVisible(False)
+        self.reset_progress.setStyleSheet("""
+            QProgressBar {
+                border: none;
+                background: #f0f0f0;
+                border-radius: 2px;
+            }
+            QProgressBar::chunk {
+                background-color: #0078d4;
+                border-radius: 2px;
+            }
+        """)
+        
         self.countdown_label = CaptionLabel("")
         self.countdown_label.setFixedWidth(50)
 
@@ -60,7 +72,7 @@ class BottomWidget(QWidget):
         layout.addWidget(self.status_label)
         layout.addStretch()
         layout.addWidget(reset_label)
-        layout.addWidget(self.reset_progress_bar)
+        layout.addWidget(self.reset_progress)
         layout.addWidget(self.countdown_label)
 
     # ... các hàm còn lại giữ nguyên ...
@@ -81,5 +93,36 @@ class BottomWidget(QWidget):
         self.weight_status_label.setStyleSheet("color: #008000;" if is_connected else "color: #d32f2f;")
 
     def update_progress(self, value, remaining_seconds):
-        self.reset_progress_bar.setValue(value)
-        self.countdown_label.setText(f"{int(remaining_seconds)}s" if value > 0 else "")
+        """Cập nhật giá trị progress bar và label đếm ngược"""
+        if remaining_seconds > 0:
+            progress_value = max(0, min(100, value))
+            self.reset_progress.setValue(progress_value)
+            self.countdown_label.setText(f"{int(remaining_seconds)}s")
+            
+            # Đổi màu dựa theo tiến trình (ngược lại so với trước)
+            if progress_value > 70:
+                chunk_color = "#2ecc71"  # Xanh lá khi còn nhiều thời gian
+            elif progress_value > 30:
+                chunk_color = "#f1c40f"  # Vàng khi còn một nửa
+            else:
+                chunk_color = "#e74c3c"  # Đỏ khi sắp hết thời gian
+                
+            self.reset_progress.setStyleSheet(f"""
+                QProgressBar {{
+                    border: none;
+                    background: #f0f0f0;
+                    border-radius: 2px;
+                }}
+                QProgressBar::chunk {{
+                    background-color: {chunk_color};
+                    border-radius: 2px;
+                }}
+            """)
+            
+            self.reset_progress.setVisible(True)
+            self.countdown_label.setVisible(True)
+        else:
+            self.reset_progress.setValue(0)
+            self.countdown_label.clear()
+            self.reset_progress.setVisible(False)
+            self.countdown_label.setVisible(False)

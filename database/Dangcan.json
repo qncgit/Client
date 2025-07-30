@@ -1,0 +1,22 @@
+[
+    {
+        "Mã lệnh": "X-000001",
+        "Biển số": "29HC - 00942",
+        "Mã lái xe": "NBCN.0906 - Nguyễn Văn Tuyên",
+        "Tên hàng hoá": "000100.2282 - Phụ gia trợ nghiền ROADCON SRGA-VS",
+        "Tên gọi tắt": "Xe số 2",
+        "Tự trọng xe (Kg)": 32000,
+        "Đơn vị": null,
+        "Nhập": "5700100263 - CÔNG TY CỔ PHẦN XI MĂNG VÀ XÂY DỰNG QUẢNG NINH",
+        "Xuất": "5700396282 - CÔNG TY CỔ PHẦN THANH TUYỀN GROUP",
+        "Phân loại": "Xuất",
+        "Cân lần 1 (Kg)": 0,
+        "Thời gian cân lần 1": "21-07-2025 11:39:04",
+        "Cân lần 2 (Kg)": 0,
+        "Thời gian cân lần 2": "30-07-2025 18:33:12",
+        "Hàng hoá (Kg)": 0,
+        "Độ lệch bì (Kg)": -32000,
+        "Id": null,
+        "Trạm cân": "TRẠM CÂN KHAI THÁC ĐÁ"
+    }
+]

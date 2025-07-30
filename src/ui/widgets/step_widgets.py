@@ -84,12 +84,36 @@ class Step1_QRScanWidget(BaseStepWidget):
         content_layout.addLayout(info_layout)
         content_layout.addStretch()
 
+        # Biến để kiểm soát việc khoá hình ảnh QR
+        self.is_qr_locked = False
+        self.last_qr_frame = None
+
     def update_camera_frame(self, q_image):
-        pixmap = QPixmap.fromImage(q_image)
-        self.camera_view.setPixmap(pixmap.scaled(self.camera_view.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        """Cập nhật frame từ camera"""
+        if self.is_qr_locked:
+            # Nếu đang khoá QR, hiển thị frame đã lưu
+            if self.last_qr_frame:
+                self.camera_view.setPixmap(self.last_qr_frame)
+        else:
+            # Nếu không khoá, hiển thị frame mới
+            pixmap = QPixmap.fromImage(q_image)
+            scaled_pixmap = pixmap.scaled(self.camera_view.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            self.camera_view.setPixmap(scaled_pixmap)
+
+    def lock_qr_frame(self):
+        """Khoá frame QR hiện tại"""
+        self.is_qr_locked = True
+        if self.camera_view.pixmap():
+            self.last_qr_frame = self.camera_view.pixmap()
+            
+    def unlock_qr_frame(self):
+        """Mở khoá frame QR"""
+        self.is_qr_locked = False
+        self.last_qr_frame = None
 
     def reset(self):
         super().reset()
+        self.unlock_qr_frame()
         self.camera_view.setText("ĐANG CHỜ...")
         self.camera_view.setStyleSheet("color: white; font-weight: bold; font-size: 14pt; background-color: black; border-radius: 5px;")
 

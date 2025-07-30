@@ -15,7 +15,7 @@
     },
     "scale_mode": {
         "type": "auto",
-        "description": "Kiểu cân: Cân tự động"
+        "description": "CÂN CHUNG"
     },
     "location_label": {
         "name": "TRẠM CÂN KHAI THÁC ĐÁ"
