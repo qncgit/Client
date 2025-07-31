@@ -56,6 +56,9 @@ class CameraThread(QThread):
                 time.sleep(0.1)
                 continue
 
+            # Lật frame theo chiều ngang và dọc
+            frame = cv2.flip(frame, 1)  # -1 để lật cả ngang và dọc, 0 để lật dọc, 1 để lật ngang
+
             try:
                 rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 h, w, ch = rgb_image.shape
