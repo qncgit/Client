@@ -54,6 +54,8 @@ class MainWindow(FluentWindow):
         self.weight_thread.start()
         self.controller.reset_process()
 
+        self.is_qr_lock_pending = False
+
     def center_window(self):
         qr = self.frameGeometry()
         cp = QDesktopWidget().availableGeometry().center()
@@ -74,20 +76,21 @@ class MainWindow(FluentWindow):
 
         # Bọc các widget bằng CardWidget và thiết lập size policy
         left_card = CardWidget()
-        left_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        left_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         left_layout = QVBoxLayout(left_card)
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(10)
-        left_layout.addWidget(self.step1)
+        left_layout.addWidget(self.step1, stretch=1)
 
         right_card = CardWidget()
         right_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         right_layout = QVBoxLayout(right_card)
         right_layout.setContentsMargins(0, 0, 0, 0)
         right_layout.setSpacing(10)
-        right_layout.addWidget(self.step2)
-        right_layout.addWidget(self.step3)
-        right_layout.addWidget(self.step4)
+        # Giảm chiều cao step2 và step3, tăng step4
+        right_layout.addWidget(self.step2, stretch=1)
+        right_layout.addWidget(self.step3, stretch=1)
+        right_layout.addWidget(self.step4, stretch=3)
 
         # Sử dụng QHBoxLayout để chia tỷ lệ 2:3
         content_layout = QHBoxLayout()
@@ -135,26 +138,55 @@ class MainWindow(FluentWindow):
         """Bắt đầu đếm ngược khi quét mã thành công"""
         self.progress_timer.start()
 
-    def on_qr_decoded(self, _):
+    def on_qr_decoded(self, qr_data):
         """Xử lý khi quét mã QR thành công"""
         print("QR scanned - Waiting for confirmation")
-        # Khoá frame QR
+        
+        # Luôn lock QR frame khi quét mã thành công
         self.step1.lock_qr_frame()
-        # Bắt đầu đếm ngược xác nhận
-        self.qr_confirm_timer.start()
-        # Hiển thị trạng thái
-        self.bottom.set_status("Đang xác nhận mã QR...", "blue")
+        
+        # Khởi động timer đếm ngược và progress bar ngay khi quét QR
+        self.restart_progress_timer()
+        
+        # Nếu lần đầu (khởi tạo cân), sau 5s sẽ unlock để cho phép quét xác nhận
+        if self.controller.current_state == self.controller.STATE_IDLE:
+            self.is_qr_lock_pending = True  # Đánh dấu cần unlock sau 5s
+            # Đảm bảo timer không bị trùng lặp
+            if self.qr_confirm_timer.isActive():
+                self.qr_confirm_timer.stop()
+            self.qr_confirm_timer.start()
+            self.bottom.set_status("Đang xác nhận mã QR...", "blue")
+        
+        # Nếu lần xác thực lưu, giữ lock QR (không unlock sau 5s)
+        elif self.controller.current_state == self.controller.STATE_WAITING_CONFIRM:
+            self.is_qr_lock_pending = False  # Không unlock sau 5s
+            self.bottom.set_status("Đang xác nhận mã QR để lưu...", "blue")
+            # QR xác nhận sẽ được xử lý bởi controller.handle_qr_scan
 
+    def restart_progress_timer(self):
+        """Khởi động lại timer đếm ngược và progress bar"""
+        if not self.progress_timer.isActive():
+            self.progress_timer.start()
+        self.bottom.update_progress(100, self.controller.inactivity_timer.interval() / 1000)
+            
     def on_qr_confirmed(self):
         """Xử lý sau khi đã xác nhận QR (sau 5s)"""
         print("QR confirmed - Starting process")
-        # Mở khoá frame QR
-        self.step1.unlock_qr_frame()
-        # Bắt đầu đếm ngược reset
-        self.progress_timer.start()
+        
+        # Chỉ unlock QR nếu đang chờ unlock (quét lần đầu) và trạng thái đã chuyển sang PROCESSING
+        if self.is_qr_lock_pending and self.controller.current_state == self.controller.STATE_PROCESSING:
+            self.step1.unlock_qr_frame()
+            self.is_qr_lock_pending = False
+            self.bottom.set_status("Mã QR đã được xác nhận. Đưa xe lên cân và chờ cân xong.", "green")
+        
+        # Cập nhật lại progress bar (không cần khởi động lại vì đã khởi động trong on_qr_decoded)
         self.bottom.update_progress(100, self.controller.inactivity_timer.interval() / 1000)
-        # Cập nhật trạng thái
-        self.bottom.set_status("Xác nhận mã QR thành công!", "green")
+
+    def on_weighing_complete(self):
+        """Xử lý khi đã cân xong, cho phép quét QR để xác nhận lưu"""
+        self.step1.unlock_qr_frame()
+        self.is_qr_lock_pending = False
+        self.bottom.set_status("Quét lại mã QR để xác nhận lưu kết quả cân", "blue")
 
     def update_reset_progress(self):
         elapsed_ms = self.controller.inactivity_timer.remainingTime()
@@ -164,7 +196,6 @@ class MainWindow(FluentWindow):
             # Đảo ngược logic - progress giảm dần từ 100 về 0
             progress = int((elapsed_ms / total_ms) * 100)
             remaining_seconds = elapsed_ms / 1000
-            print(f"Progress: {progress}%, Time: {remaining_seconds}s")  # Debug log
             self.bottom.update_progress(progress, remaining_seconds)
         else:
             self.progress_timer.stop()
@@ -182,6 +213,9 @@ class MainWindow(FluentWindow):
         self.camera_thread.qr_decoded.connect(self.controller.handle_qr_scan)
         # Thêm kết nối cho sự kiện quét mã thành công
         self.camera_thread.qr_decoded.connect(self.on_qr_decoded)
+        
+        # Kết nối tín hiệu từ controller khi cân xong để bật lại chế độ QR
+        self.controller.weighing_complete_signal.connect(self.on_weighing_complete)
 
         self.sync_thread.sync_status_update.connect(self.handle_sync_status)
 
@@ -195,14 +229,44 @@ class MainWindow(FluentWindow):
 
         self.controller.inactivity_timer.timeout.connect(self.controller.reset_process)
 
-    # ... (các hàm còn lại giữ nguyên) ...
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._update_dynamic_font_size()
+
+    def _update_dynamic_font_size(self):
+        base_height = 768
+        base_font_size = 12
+        max_font_size = 24
+        h = self.height()
+        if h <= base_height:
+            font_size = base_font_size
+        else:
+            font_size = min(base_font_size + int((h - base_height) / 100), max_font_size)
+        # Áp dụng cho các dialog SettingDialog nếu đang mở
+        for dialog in self.findChildren(SettingDialog):
+            dialog.update_font_size(font_size)
+        # Áp dụng cho các step widget nếu có phương thức update_font_size
+        for step_widget in [self.step1, self.step2, self.step3, self.step4]:
+            if hasattr(step_widget, "update_font_size"):
+                step_widget.update_font_size(font_size)
+
     def reset_all_widgets(self):
-        self.step1.reset()
+        """Reset các widget về trạng thái ban đầu"""
+        # Đảm bảo luôn unlock QR frame khi reset form
+        self.step1.unlock_qr_frame()
+        self.is_qr_lock_pending = False  # Reset cờ khi reset form
+        
+        # Reset dữ liệu của các widget
+        self.step1.reset_data()  
         self.step2.reset()
         self.step3.reset()
         self.step4.reset()
+        
+        # Reset progress bar
         self.bottom.update_progress(0, 0)
-        if self.progress_timer:
+        
+        # Dừng các timer nếu đang chạy
+        if self.progress_timer.isActive():
             self.progress_timer.stop()
         if self.qr_confirm_timer.isActive():
             self.qr_confirm_timer.stop()

@@ -30,13 +30,18 @@ class BaseStepWidget(QFrame):
     def _add_info_row(self, key, label_text):
         """Thêm một hàng thông tin (gồm nhãn và giá trị)."""
         row_layout = QVBoxLayout()
+        row_layout.setSpacing(2)  # Giảm khoảng cách giữa các dòng
         
         label = QLabel(f"{label_text}:")
-        label.setStyleSheet("font-weight: bold; color: #333;")
+        label.setStyleSheet("font-weight: bold; color: #333; padding: 0px 2px;")
+        label.setMinimumHeight(18)
+        label.setMaximumHeight(22)
         
         value_label = QLabel("...")
-        value_label.setStyleSheet("font-size: 11pt; color: #000;")
+        value_label.setStyleSheet("font-size: 11pt; color: #000; padding: 0px 2px;")
         value_label.setWordWrap(True)
+        value_label.setMinimumHeight(18)   # Giảm chiều cao tối thiểu
+        value_label.setMaximumHeight(24)   # Giảm chiều cao tối đa
 
         row_layout.addWidget(label)
         row_layout.addWidget(value_label)
@@ -53,6 +58,21 @@ class BaseStepWidget(QFrame):
         for key, label in self.info_labels.items():
             value = data_dict.get(key, 'N/A')
             label.setText(str(value))
+
+    def update_font_size(self, font_size):
+        """
+        Cập nhật cỡ chữ động cho title và các label thông tin.
+        """
+        # Title label
+        f = self.title_label.font()
+        f.setPointSize(font_size + 2)
+        self.title_label.setFont(f)
+        self.title_label.setStyleSheet("color: #00557f; background-color: #cce7ff; padding: 5px; border-radius: 5px;")
+        # Info labels
+        for value_label in self.info_labels.values():
+            value_label.setStyleSheet(f"font-size: {font_size}pt; color: #000; padding: 0px 2px;")
+            value_label.setMinimumHeight(max(16, font_size + 2))
+            value_label.setMaximumHeight(max(20, font_size + 6))
 
     def reset(self):
         """Reset tất cả các label giá trị về trạng thái ban đầu."""

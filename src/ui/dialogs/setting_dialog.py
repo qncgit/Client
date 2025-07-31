@@ -315,3 +315,27 @@ class SettingDialog(QDialog):
             MessageBox.success('Thành công', 'Đã lưu cài đặt!', main_window)
         else:
             MessageBox.error('Lỗi', 'Không thể lưu file cấu hình!', self)
+
+    def update_font_size(self, font_size):
+        widgets = [
+            self.host_input, self.port_input, self.token_input,
+            self.project_id_input, self.table_id_phieu_can_input, self.table_id_lenh_can_input,
+            self.view_id_lenh_can_input, self.table_id_phuong_tien_input, self.view_id_phuong_tien_input,
+            self.table_id_nhan_vien_input, self.view_id_nhan_vien_input,
+            self.com_port_input, self.com_baudrate_input, self.com_bytesize_input,
+            self.com_parity_input, self.com_stopbits_input, self.com_timeout_input,
+            self.cam_enabled_switch, self.cam_type_input, self.webcam_index_input, self.rtsp_url_input,
+            self.station_name_input, self.mode_input, self.mode_desc_input,
+            self.reset_time_input, self.sync_time_input,
+            self.new_password_input, self.confirm_password_input
+        ]
+        for w in widgets:
+            if hasattr(w, "setFont"):
+                f = w.font()
+                f.setPointSize(font_size)
+                w.setFont(f)
+        # Cập nhật font cho các label trong CardWidget
+        for card in self.findChildren((TitleLabel, BodyLabel)):
+            f = card.font()
+            f.setPointSize(font_size)
+            card.setFont(f)

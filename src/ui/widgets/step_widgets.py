@@ -46,15 +46,50 @@ class BaseStepWidget(CardWidget):
             return
         for key, field in self.info_fields.items():
             value = data_dict.get(key, '-')
-            field.setText(str(value) if value is not None else '-')
+            text = str(value) if value is not None else '-'
+            field.setText(text)
+            # Giảm size chữ nếu dữ liệu quá dài
+            default_font = field.font()
+            default_size = default_font.pointSize()
+            # Nếu text dài hơn 40 ký tự thì giảm font size
+            if len(text) > 40:
+                new_size = max(10, default_size - 2)
+                f = field.font()
+                f.setPointSize(new_size)
+                field.setFont(f)
+            else:
+                f = field.font()
+                f.setPointSize(default_size)
+                field.setFont(f)
 
     def reset(self):
         for field in self.info_fields.values():
             field.setText("-")
+            # Reset font size về mặc định
+            f = field.font()
+            f.setPointSize(12)
+            field.setFont(f)
+
+    def update_font_size(self, font_size):
+        f = self.title_label.font()
+        f.setPointSize(font_size + 2)
+        self.title_label.setFont(f)
+        for field in self.info_fields.values():
+            f = field.font()
+            f.setPointSize(font_size)
+            field.setFont(f)
+            field.setMinimumHeight(max(18, font_size + 2))
+            field.setMaximumHeight(max(46, font_size + 6))
+        for layout in self.content_container.findChildren(QGridLayout):
+            for i in range(layout.count()):
+                widget = layout.itemAt(i).widget()
+                if isinstance(widget, StrongBodyLabel):
+                    f = widget.font()
+                    f.setPointSize(font_size)
+                    widget.setFont(f)
 
 
 class Step1_QRScanWidget(BaseStepWidget):
-    """Bước 1: Hiển thị camera và thông tin lệnh cân."""
     def __init__(self, parent=None):
         super().__init__("BƯỚC 1: THÔNG TIN LỆNH VẬN CHUYỂN (QUÉT QR)", parent)
 
@@ -117,6 +152,17 @@ class Step1_QRScanWidget(BaseStepWidget):
         self.camera_view.setText("ĐANG CHỜ...")
         self.camera_view.setStyleSheet("color: white; font-weight: bold; font-size: 14pt; background-color: black; border-radius: 5px;")
 
+    def reset_data(self):
+        """Reset chỉ dữ liệu, không reset trạng thái camera"""
+        for field in self.info_fields.values():
+            field.setText("-")
+            # Reset font size về mặc định
+            f = field.font()
+            f.setPointSize(12)
+            field.setFont(f)
+        # Luôn unlock QR frame khi reset data
+        self.unlock_qr_frame()
+
 
 class Step2_DriverInfoWidget(BaseStepWidget):
     """Bước 2: Hiển thị thông tin lái xe."""
@@ -173,15 +219,63 @@ class Step4_WeightInfoWidget(BaseStepWidget):
         content_layout.setSpacing(8)
         content_layout.setContentsMargins(15, 15, 15, 15)
 
-        fields_to_add = [
-            ('Phiếu cân', 'PHIẾU CÂN', 0, 0), ('TRANGTHAI', 'TRẠNG THÁI', 0, 1),
-            ('Cân lần 1 (Kg)', 'Cân lần 1', 1, 0), ('Thời gian cân lần 1', 'TG Cân 1', 1, 1),
-            ('Cân lần 2 (Kg)', 'Cân lần 2', 2, 0), ('Thời gian cân lần 2', 'TG Cân 2', 2, 1),
-            ('Hàng hoá (Kg)', 'Hàng hoá', 3, 0),
-            ('Độ lệch bì (Kg)', 'Độ lệch bì', 4, 0)
-        ]
-        for key, text, row, col in fields_to_add:
-            self._add_info_row(content_layout, key, text, row, col)
-        
+        # Phiếu cân chiếm toàn bộ dòng 0 (4 cột)
+        self._add_info_row(content_layout, 'Phiếu cân', 'PHIẾU CÂN', 0, 0)
+        content_layout.addWidget(self.info_fields['Phiếu cân'], 0, 1, 1, 3)
+
+        # Trạng thái chiếm toàn bộ dòng 1 (4 cột)
+        self._add_info_row(content_layout, 'TRANGTHAI', 'TRẠNG THÁI', 1, 0)
+        content_layout.addWidget(self.info_fields['TRANGTHAI'], 1, 1, 1, 3)
+
+        # Cân lần 1 và TG Cân 1 cùng dòng, thẳng hàng, có khung vuông
+        label_can1 = StrongBodyLabel("Cân lần 1:")
+        label_can1.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        content_layout.addWidget(label_can1, 2, 0)
+        self.info_fields['Cân lần 1 (Kg)'] = BodyLabel("-")
+        self.info_fields['Cân lần 1 (Kg)'].setStyleSheet(
+            "border: 1px solid #ccc; border-radius: 4px; padding: 4px; background-color: #f9f9f9;"
+        )
+        self.info_fields['Cân lần 1 (Kg)'].setMinimumHeight(28)
+        content_layout.addWidget(self.info_fields['Cân lần 1 (Kg)'], 2, 1)
+
+        label_tg1 = StrongBodyLabel("TG Cân 1:")
+        label_tg1.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        content_layout.addWidget(label_tg1, 2, 2)
+        self.info_fields['Thời gian cân lần 1'] = BodyLabel("-")
+        self.info_fields['Thời gian cân lần 1'].setStyleSheet(
+            "border: 1px solid #ccc; border-radius: 4px; padding: 4px; background-color: #f9f9f9;"
+        )
+        self.info_fields['Thời gian cân lần 1'].setMinimumHeight(28)
+        content_layout.addWidget(self.info_fields['Thời gian cân lần 1'], 2, 3)
+
+        # Cân lần 2 và TG Cân 2 cùng dòng, thẳng hàng, có khung vuông
+        label_can2 = StrongBodyLabel("Cân lần 2:")
+        label_can2.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        content_layout.addWidget(label_can2, 3, 0)
+        self.info_fields['Cân lần 2 (Kg)'] = BodyLabel("-")
+        self.info_fields['Cân lần 2 (Kg)'].setStyleSheet(
+            "border: 1px solid #ccc; border-radius: 4px; padding: 4px; background-color: #f9f9f9;"
+        )
+        self.info_fields['Cân lần 2 (Kg)'].setMinimumHeight(28)
+        content_layout.addWidget(self.info_fields['Cân lần 2 (Kg)'], 3, 1)
+
+        label_tg2 = StrongBodyLabel("TG Cân 2:")
+        label_tg2.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        content_layout.addWidget(label_tg2, 3, 2)
+        self.info_fields['Thời gian cân lần 2'] = BodyLabel("-")
+        self.info_fields['Thời gian cân lần 2'].setStyleSheet(
+            "border: 1px solid #ccc; border-radius: 4px; padding: 4px; background-color: #f9f9f9;"
+        )
+        self.info_fields['Thời gian cân lần 2'].setMinimumHeight(28)
+        content_layout.addWidget(self.info_fields['Thời gian cân lần 2'], 3, 3)
+
+        # Các trường còn lại
+        self._add_info_row(content_layout, 'Hàng hoá (Kg)', 'Hàng hoá', 4, 0)
+        content_layout.addWidget(self.info_fields['Hàng hoá (Kg)'], 4, 1, 1, 3)
+        self._add_info_row(content_layout, 'Độ lệch bì (Kg)', 'Độ lệch bì', 5, 0)
+        content_layout.addWidget(self.info_fields['Độ lệch bì (Kg)'], 5, 1, 1, 3)
+
+        # Căn cột cho layout
         content_layout.setColumnStretch(1, 1)
+        content_layout.setColumnStretch(2, 1)
         content_layout.setColumnStretch(3, 1)

@@ -1,5 +1,6 @@
 from PyQt5.QtCore import QObject, pyqtSignal, QTimer
 from datetime import datetime
+import uuid
 
 class MainController(QObject):
     """
@@ -12,6 +13,7 @@ class MainController(QObject):
     update_step4_signal = pyqtSignal(dict)
     reset_all_steps_signal = pyqtSignal()
     update_mode_signal = pyqtSignal(str)
+    weighing_complete_signal = pyqtSignal()  # Thêm tín hiệu mới
     
     STATE_IDLE = "IDLE"
     STATE_PROCESSING = "PROCESSING"
@@ -46,7 +48,11 @@ class MainController(QObject):
         if self.current_state == self.STATE_IDLE:
             self._handle_new_weighing_request(ma_lenh, ma_lai_xe, bien_so_xe)
         elif self.current_state == self.STATE_WAITING_CONFIRM:
-            self._handle_save_confirmation(ma_lenh)
+            # Chỉ xác nhận lưu nếu mã lệnh trùng với phiếu cân hiện tại
+            if ma_lenh == self.phieu_can_hien_tai.get('Mã lệnh'):
+                self._handle_save_confirmation(ma_lenh)
+            else:
+                self.update_status_signal.emit("Mã QR xác nhận không khớp với phiếu cân đang chờ!", "red")
         else:
             self.update_status_signal.emit("Hệ thống đang xử lý, vui lòng chờ.", "orange")
 
@@ -59,21 +65,42 @@ class MainController(QObject):
         phuong_tien_details = self._repo.get_phuong_tien_by_bks(bien_so_xe)
         
         lenh_can_info = lenh_can_details if lenh_can_details else {'Mã lệnh': ma_lenh}
-        lai_xe_info = lai_xe_details if lai_xe_details else {'Mã lái xe': ma_lai_xe, 'Họ và tên': ma_lai_xe}
-        phuong_tien_info = phuong_tien_details if phuong_tien_details else {'Biển số': bien_so_xe}
+        lenh_can_info['KetQua'] = "THÀNH CÔNG" if lenh_can_details else "KHÔNG TÌM THẤY"
 
+        lai_xe_info = lai_xe_details if lai_xe_details else {'Mã lái xe': ma_lai_xe, 'Họ và tên': ma_lai_xe}
+        lai_xe_info['KetQua'] = "THÀNH CÔNG" if lai_xe_details else "KHÔNG TÌM THẤY"
+
+        phuong_tien_info = phuong_tien_details if phuong_tien_details else {'Biển số': bien_so_xe}
+        phuong_tien_info['KetQua'] = "THÀNH CÔNG" if phuong_tien_details else "KHÔNG TÌM THẤY"
+
+        # Phân biệt cân lần đầu và cân lần hai
         phieu_can_cho = self._repo.find_phieu_can_dang_cho(ma_lenh)
-        
-        self.phieu_can_hien_tai = self._build_weighing_ticket(
-            lenh_can_info, lai_xe_info, phuong_tien_info, phieu_can_cho
-        )
+        if phieu_can_cho:
+            # Nếu đã có phiếu cân (cân lần 2), lấy phiếu cân từ json
+            self.phieu_can_hien_tai = self._build_weighing_ticket(
+                lenh_can_info, lai_xe_info, phuong_tien_info, phieu_can_cho
+            )
+            # Sử dụng đúng UUID đã lưu
+            self.phieu_can_hien_tai['Phiếu cân'] = str(phieu_can_cho.get('Phiếu cân', phieu_can_cho.get('Id', '')))
+            if 'Id' not in self.phieu_can_hien_tai or not self.phieu_can_hien_tai['Id']:
+                self.phieu_can_hien_tai['Id'] = self.phieu_can_hien_tai['Phiếu cân']
+        else:
+            # Nếu chưa có phiếu cân (cân lần đầu), tạo mới phiếu cân với UUID4
+            uuid_str = str(uuid.uuid4())
+            self.phieu_can_hien_tai = self._build_weighing_ticket(
+                lenh_can_info, lai_xe_info, phuong_tien_info, None
+            )
+            self.phieu_can_hien_tai['Phiếu cân'] = uuid_str
+            self.phieu_can_hien_tai['Id'] = uuid_str
+
+        self.phieu_can_hien_tai['TRANGTHAI'] = "-"
 
         self.update_step1_signal.emit(lenh_can_info)
         self.update_step2_signal.emit(lai_xe_info)
         self.update_step3_signal.emit(phuong_tien_info)
         self.update_step4_signal.emit(self.phieu_can_hien_tai)
         
-        stable_time = self._config.get('app.stable_time', 3) # Thêm key này vào config nếu muốn thay đổi
+        stable_time = self._config.get('app.stable_time', 3)
         QTimer.singleShot(stable_time * 1000, self._execute_weighing)
 
     def _execute_weighing(self):
@@ -83,27 +110,36 @@ class MainController(QObject):
             self.phieu_can_hien_tai['Cân lần 1 (Kg)'] = self.current_weight
             self.phieu_can_hien_tai['Thời gian cân lần 1'] = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
             self.update_status_signal.emit("Đã ghi nhận cân lần 1. Quét lại mã QR để xác nhận lưu.", "green")
+            self.current_state = self.STATE_WAITING_CONFIRM  # Cập nhật trạng thái
         elif self.phieu_can_hien_tai.get('Cân lần 1 (Kg)') is not None and mode in ['auto', 'out']:
             self.phieu_can_hien_tai['Cân lần 2 (Kg)'] = self.current_weight
             self.phieu_can_hien_tai['Thời gian cân lần 2'] = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
             self._calculate_final_weight()
             self.update_status_signal.emit("Đã ghi nhận cân lần 2. Quét lại mã QR để xác nhận lưu.", "green")
+            self.current_state = self.STATE_WAITING_CONFIRM  # Cập nhật trạng thái
         else:
             self.update_status_signal.emit(f"Chế độ '{mode}' không cho phép thực hiện thao tác này.", "red")
             self.reset_process()
             return
 
-        self.current_state = self.STATE_WAITING_CONFIRM
+        # Sau khi cân xong, cập nhật trạng thái phiếu cân
+        self.phieu_can_hien_tai['TRANGTHAI'] = "CHỜ XÁC NHẬN"
         self.update_step4_signal.emit(self.phieu_can_hien_tai)
+        self.weighing_complete_signal.emit()  # Phát tín hiệu cân xong
         self.restart_inactivity_timer()
 
     def _handle_save_confirmation(self, ma_lenh):
         if ma_lenh != self.phieu_can_hien_tai.get('Mã lệnh'):
+            self.phieu_can_hien_tai['TRANGTHAI'] = "XÁC NHẬN THẤT BẠI"
+            self.update_step4_signal.emit(self.phieu_can_hien_tai)
             self.update_status_signal.emit("Xác nhận thất bại! Sai mã lệnh.", "red")
-            self.reset_process()
+            # Không reset form ngay, để người dùng nhìn thấy thông báo lỗi
+            # self.reset_process()
             return
             
         self.update_status_signal.emit("Đang lưu phiếu cân...", "blue")
+        self.phieu_can_hien_tai['TRANGTHAI'] = "ĐANG LƯU"
+        self.update_step4_signal.emit(self.phieu_can_hien_tai)
         
         self.phieu_can_hien_tai['Trạm cân'] = self._config.get('location_label.name', 'N/A')
         
@@ -112,9 +148,14 @@ class MainController(QObject):
         table_info = self._config.get_nocodb_table_by_name("Lịch sử cân")
         if not table_info:
             self.update_status_signal.emit("Lỗi cấu hình: Không tìm thấy bảng 'Lịch sử cân'.", "red")
+            self._repo.save_phieu_can_dang_cho_local(self.phieu_can_hien_tai)
+            self.update_status_signal.emit("Phiếu cân đã được lưu offline.", "orange")
+            # Không reset form ngay, để người dùng thấy thông báo
+            # self.reset_process()
             return
         table_id = table_info.get('id')
 
+        # Luôn lưu local trước, sau đó gửi lên server
         if is_update:
             self._repo.complete_phieu_can_local(self.phieu_can_hien_tai)
             _, error = self._repo.update_phieu_can_api(table_id, self.phieu_can_hien_tai)
@@ -126,11 +167,27 @@ class MainController(QObject):
                 self._repo.save_phieu_can_dang_cho_local(self.phieu_can_hien_tai)
 
         if error:
-            self.update_status_signal.emit(f"Lưu phiếu cân thất bại: {error}", "red")
+            self.phieu_can_hien_tai['TRANGTHAI'] = "LƯU OFFLINE"
+            self.phieu_can_hien_tai['KetQua'] = "THẤT BẠI"
+            self.update_step4_signal.emit(self.phieu_can_hien_tai)
+            self.update_status_signal.emit(f"Lưu phiếu cân thất bại (offline): {error}", "orange")
+            self.update_status_signal.emit("Phiếu cân đã được lưu offline. Sẽ tự động đồng bộ khi có mạng.", "orange")
+            self._repo.complete_phieu_can_local(self.phieu_can_hien_tai)
+            # Không reset form ngay, để người dùng thấy thông báo
+            # self.reset_process()
         else:
+            self.phieu_can_hien_tai['TRANGTHAI'] = "THÀNH CÔNG"
+            self.phieu_can_hien_tai['KetQua'] = "THÀNH CÔNG"
+            if self.phieu_can_hien_tai.get('Id'):
+                self.phieu_can_hien_tai['Phiếu cân'] = str(self.phieu_can_hien_tai['Id'])
+            self.update_step4_signal.emit(self.phieu_can_hien_tai)
             self.update_status_signal.emit("Lưu phiếu cân thành công!", "green")
+            self._repo.complete_phieu_can_local(self.phieu_can_hien_tai)
+            # Tiếp tục đếm ngược đến khi hết thời gian, không reset ngay
+            # self.reset_process()
             
-        QTimer.singleShot(3000, self.reset_process)
+        # Đặt trạng thái về IDLE để chuẩn bị quét mã mới sau khi đếm ngược hết
+        self.current_state = self.STATE_IDLE
 
     def _build_weighing_ticket(self, lenh_can, lai_xe, phuong_tien, phieu_can_cho):
         if phieu_can_cho:

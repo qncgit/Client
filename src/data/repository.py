@@ -43,21 +43,42 @@ class Repository:
         self.nhan_vien = self._load_json('Thongtinnhanvien.json')
         self.phieu_can_dang_cho = self._load_json('Dangcan.json')
         self.phieu_can_lich_su = self._load_json('lichsucan.json')
-        print("Đã tải dữ liệu cục bộ vào bộ nhớ.")
 
     def sync_table(self, table_name, table_id, view_id):
         data, error = self.api_client.get_data(table_id, view_id)
         if data is not None:
-            if table_name == 'lenh_can': self.lenh_can = data
-            elif table_name == 'phuong_tien': self.phuong_tien = data
-            elif table_name == 'nhan_vien': self.nhan_vien = data
-            
+            local_data = []
+            if table_name == 'lenh_can': local_data = self.lenh_can
+            elif table_name == 'phuong_tien': local_data = self.phuong_tien
+            elif table_name == 'nhan_vien': local_data = self.nhan_vien
+            elif table_name == 'phieu_can_dang_cho': local_data = self.phieu_can_dang_cho  # Thêm dòng này
+
+            def key_func(item):
+                if table_name == 'lenh_can': return item.get('Mã lệnh')
+                if table_name == 'phuong_tien': return item.get('Biển số')
+                if table_name == 'nhan_vien': return item.get('Mã lái xe')
+                if table_name == 'phieu_can_dang_cho': return item.get('Mã lệnh')  # Thêm dòng này
+                return None
+
+            merged = {key_func(item): item for item in data if key_func(item) is not None}
+            for item in local_data:
+                k = key_func(item)
+                if k not in merged:
+                    merged[k] = item
+            merged_list = list(merged.values())
+
+            if table_name == 'lenh_can': self.lenh_can = merged_list
+            elif table_name == 'phuong_tien': self.phuong_tien = merged_list
+            elif table_name == 'nhan_vien': self.nhan_vien = merged_list
+            elif table_name == 'phieu_can_dang_cho': self.phieu_can_dang_cho = merged_list  # Thêm dòng này
+
             filename_map = {
                 'lenh_can': 'Thongtinlenhcan.json',
                 'phuong_tien': 'Thongtinphuongtien.json',
-                'nhan_vien': 'Thongtinnhanvien.json'
+                'nhan_vien': 'Thongtinnhanvien.json',
+                'phieu_can_dang_cho': 'Dangcan.json'  # Thêm dòng này
             }
-            self._save_json(filename_map[table_name], data)
+            self._save_json(filename_map[table_name], merged_list)
             return True, f"Đồng bộ {table_name} thành công."
         return False, error or f"Không có dữ liệu {table_name}."
 
@@ -68,17 +89,20 @@ class Repository:
         return next((item for item in self.phuong_tien if item.get('Biển số') == bks), None)
 
     def get_nhan_vien_by_id(self, ma_nv):
-        return next((item for item in self.nhan_vien if item.get('Mã lái xe') == ma_nv), None)
+        # So sánh với Label_Mã lái xe thay vì Mã lái xe
+        return next((item for item in self.nhan_vien if item.get('Label_Mã lái xe') == ma_nv), None)
         
     def find_phieu_can_dang_cho(self, ma_lenh):
         return next((item for item in self.phieu_can_dang_cho if item.get('Mã lệnh') == ma_lenh), None)
 
     def create_phieu_can_api(self, table_id, data):
+        self.save_phieu_can_dang_cho_local(data)
         return self.api_client.create_record(table_id, data)
 
     def update_phieu_can_api(self, table_id, data):
+        self.complete_phieu_can_local(data)
         return self.api_client.update_record(table_id, data)
-        
+
     def save_phieu_can_dang_cho_local(self, phieu_can):
         self.phieu_can_dang_cho = [p for p in self.phieu_can_dang_cho if p.get('Mã lệnh') != phieu_can.get('Mã lệnh')]
         self.phieu_can_dang_cho.append(phieu_can)

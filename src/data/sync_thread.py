@@ -20,12 +20,14 @@ class SyncThread(QThread):
         self.table_map = {
             "Thông tin nhân viên": "nhan_vien",
             "Thông tin phương tiện": "phuong_tien",
-            "Thông tin lệnh cân": "lenh_can"
+            "Thông tin lệnh cân": "lenh_can",
+            "Lịch sử cân": "phieu_can_dang_cho"  # Thêm dòng này để đồng bộ phiếu cân đang chờ
         }
         self.view_map = {
             "Thông tin nhân viên": "Thongtinnhanvien",
             "Thông tin phương tiện": "Thongtinphuongtien",
-            "Thông tin lệnh cân": "Thongtinlenhcan"
+            "Thông tin lệnh cân": "Thongtinlenhcan",
+            "Lịch sử cân": "Dangcan"  # View cho phiếu cân đang chờ
         }
 
         while self._is_running:
@@ -41,8 +43,9 @@ class SyncThread(QThread):
                 table_name_from_config = table_config.get('name')
                 internal_name = self.table_map.get(table_name_from_config)
                 
-                if not internal_name:
-                    continue # Bỏ qua các bảng không cần đồng bộ (vd: Lịch sử cân)
+                # Bỏ qua lịch sử cân (chỉ lấy phiếu cân đang chờ)
+                if not internal_name or (table_name_from_config == "Lịch sử cân" and self.view_map.get(table_name_from_config) != "Dangcan"):
+                    continue
 
                 target_view_name = self.view_map.get(table_name_from_config)
                 view_info = self._config.get_nocodb_view_by_name(table_config, target_view_name)
