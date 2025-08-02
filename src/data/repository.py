@@ -1,12 +1,12 @@
 import json
 import os
 from .api_client import ApiClient
-# Thay đổi ở đây
 from src.utils.helpers import Common
+import time
+from datetime import datetime
 
 class Repository:
     def __init__(self, config_manager, db_path='database/'):
-        # Thay đổi ở đây
         self.db_path = Common.resource_path(db_path)
         self.api_client = ApiClient(config_manager)
         
@@ -15,6 +15,10 @@ class Repository:
         self.nhan_vien = []
         self.phieu_can_dang_cho = []
         self.phieu_can_lich_su = []
+        self.phieu_can_offline = []  # Queue cho phiếu cân chờ đồng bộ
+        
+        # Đảm bảo thư mục cơ sở dữ liệu tồn tại
+        os.makedirs(self.db_path, exist_ok=True)
         
         self.load_all_local_data()
 
@@ -43,6 +47,7 @@ class Repository:
         self.nhan_vien = self._load_json('Thongtinnhanvien.json')
         self.phieu_can_dang_cho = self._load_json('Dangcan.json')
         self.phieu_can_lich_su = self._load_json('lichsucan.json')
+        self.phieu_can_offline = self._load_json('offline_queue.json')  # Thêm đọc queue offline
 
     def sync_table(self, table_name, table_id, view_id):
         data, error = self.api_client.get_data(table_id, view_id)
@@ -93,15 +98,103 @@ class Repository:
         return next((item for item in self.nhan_vien if item.get('Label_Mã lái xe') == ma_nv), None)
         
     def find_phieu_can_dang_cho(self, ma_lenh):
-        return next((item for item in self.phieu_can_dang_cho if item.get('Mã lệnh') == ma_lenh), None)
-
+        """Tìm phiếu cân đang chờ theo mã lệnh"""
+        # Tìm trong phiếu cân đang chờ trước
+        for item in self.phieu_can_dang_cho:
+            if item.get('Mã lệnh') == ma_lenh:
+                return item
+                
+        # Nếu không tìm thấy, kiểm tra trong lịch sử cân lần 1 đã được lưu
+        for item in self.phieu_can_lich_su:
+            if item.get('Mã lệnh') == ma_lenh and item.get('Cân lần 1 (Kg)') is not None and item.get('Cân lần 2 (Kg)') is None:
+                return item
+                
+        return None
+        
     def create_phieu_can_api(self, table_id, data):
+        """Tạo phiếu cân mới và xử lý trường hợp offline"""
+        # Lưu local trước
         self.save_phieu_can_dang_cho_local(data)
-        return self.api_client.create_record(table_id, data)
+        
+        # Thử gửi lên API
+        response, error = self.api_client.create_record(table_id, data)
+        
+        if error:
+            # Nếu có lỗi, thêm vào queue offline
+            self._add_to_offline_queue('create', table_id, data)
+            return None, error
+        return response, None
 
     def update_phieu_can_api(self, table_id, data):
+        """Cập nhật phiếu cân và xử lý trường hợp offline"""
+        # Lưu local trước
         self.complete_phieu_can_local(data)
-        return self.api_client.update_record(table_id, data)
+        
+        # Thử gửi lên API
+        response, error = self.api_client.update_record(table_id, data)
+        
+        if error:
+            # Nếu có lỗi, thêm vào queue offline
+            self._add_to_offline_queue('update', table_id, data)
+            return None, error
+        return response, None
+
+    def _add_to_offline_queue(self, action_type, table_id, data):
+        """Thêm một thao tác vào queue để đồng bộ sau"""
+        queue_item = {
+            'action': action_type,
+            'table_id': table_id,
+            'data': data,
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }
+        self.phieu_can_offline.append(queue_item)
+        self._save_json('offline_queue.json', self.phieu_can_offline)
+
+    def sync_offline_queue(self):
+        """Đồng bộ các phiếu cân trong queue offline lên server"""
+        if not self.phieu_can_offline:
+            return 0, 0  # Không có gì để đồng bộ
+        
+        success_count = 0
+        total = len(self.phieu_can_offline)
+        items_to_remove = []
+        
+        for i, item in enumerate(self.phieu_can_offline):
+            try:
+                if item['action'] == 'create':
+                    response, error = self.api_client.create_record(item['table_id'], item['data'])
+                elif item['action'] == 'update':
+                    response, error = self.api_client.update_record(item['table_id'], item['data'])
+                else:
+                    error = "Loại hành động không được hỗ trợ"
+                    
+                if error is None:
+                    success_count += 1
+                    items_to_remove.append(i)
+                    # Nếu ID phản hồi khác với ID hiện tại, cập nhật trong lịch sử
+                    if response and 'Id' in response and item['action'] == 'create':
+                        self._update_record_id_in_history(item['data']['Phiếu cân'], response['Id'])
+                
+            except Exception as e:
+                print(f"Lỗi khi đồng bộ queue offline: {e}")
+                
+        # Loại bỏ các mục đã đồng bộ thành công
+        for index in sorted(items_to_remove, reverse=True):
+            del self.phieu_can_offline[index]
+            
+        # Lưu lại queue đã được cập nhật
+        self._save_json('offline_queue.json', self.phieu_can_offline)
+        
+        return success_count, total
+
+    def _update_record_id_in_history(self, old_id, new_id):
+        """Cập nhật ID trong lịch sử phiếu cân"""
+        for i, record in enumerate(self.phieu_can_lich_su):
+            if record.get('Phiếu cân') == old_id:
+                self.phieu_can_lich_su[i]['Id'] = new_id
+                
+        # Lưu lại lịch sử đã cập nhật
+        self._save_json('lichsucan.json', self.phieu_can_lich_su)
 
     def save_phieu_can_dang_cho_local(self, phieu_can):
         self.phieu_can_dang_cho = [p for p in self.phieu_can_dang_cho if p.get('Mã lệnh') != phieu_can.get('Mã lệnh')]
@@ -109,8 +202,32 @@ class Repository:
         self._save_json('Dangcan.json', self.phieu_can_dang_cho)
 
     def complete_phieu_can_local(self, phieu_can_hoan_thanh):
+        """Hoàn thành một phiếu cân, chuyển từ đang chờ sang lịch sử"""
         ma_lenh_hoan_thanh = phieu_can_hoan_thanh.get('Mã lệnh')
+        # Xóa khỏi danh sách đang chờ nếu có
         self.phieu_can_dang_cho = [p for p in self.phieu_can_dang_cho if p.get('Mã lệnh') != ma_lenh_hoan_thanh]
+        
+        # Xóa phiếu cân cũ trong lịch sử nếu có (tránh trùng lặp)
+        phieu_can_id = phieu_can_hoan_thanh.get('Phiếu cân')
+        self.phieu_can_lich_su = [p for p in self.phieu_can_lich_su 
+                                  if not (p.get('Mã lệnh') == ma_lenh_hoan_thanh and
+                                          p.get('Cân lần 2 (Kg)') is None)]
+        
+        # Thêm phiếu cân mới vào lịch sử
         self.phieu_can_lich_su.append(phieu_can_hoan_thanh)
+        
+        # Lưu các file JSON
         self._save_json('Dangcan.json', self.phieu_can_dang_cho)
         self._save_json('lichsucan.json', self.phieu_can_lich_su)
+
+    def get_offline_queue_count(self):
+        """Lấy số lượng phiếu cân đang chờ đồng bộ"""
+        return len(self.phieu_can_offline)
+
+    def debug_network_status(self):
+        """Kiểm tra và ghi log trạng thái kết nối"""
+        status, message = self.api_client.check_server_status()
+        print(f"DEBUG - Network Status Check: {'ONLINE' if status else 'OFFLINE'}")
+        print(f"DEBUG - Status Message: {message}")
+        print(f"DEBUG - ApiClient.online: {self.api_client.online}")
+        return status

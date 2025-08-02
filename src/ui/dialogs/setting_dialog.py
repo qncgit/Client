@@ -254,13 +254,12 @@ class SettingDialog(QDialog):
         self.reset_time_input.setValue(self._config.get('reset_time', 15))
         
     def on_save(self):
-        new_config = copy.deepcopy(self._config.config)
-        # ... (logic sao chép config giữ nguyên) ...
-        new_config['server']['host'] = self.host_input.text()
-        new_config['server']['port'] = self.port_input.value()
-        new_config['server']['api_token'] = self.token_input.text()
-        new_config['server']['sync_interval'] = self.sync_time_input.value()
-        new_config['nocodb']['base']['id'] = self.project_id_input.text()
+        # Update the configuration directly instead of creating a copy
+        self._config.config['server']['host'] = self.host_input.text()
+        self._config.config['server']['port'] = self.port_input.value()
+        self._config.config['server']['api_token'] = self.token_input.text()
+        self._config.config['server']['sync_interval'] = self.sync_time_input.value()
+        self._config.config['nocodb']['base']['id'] = self.project_id_input.text()
 
         def update_table_ids(name, table_widget, view_widget, view_name):
             table = self._config.get_nocodb_table_by_name(name)
@@ -276,22 +275,22 @@ class SettingDialog(QDialog):
         pc_table = self._config.get_nocodb_table_by_name("Lịch sử cân")
         if pc_table: pc_table['id'] = self.table_id_phieu_can_input.text()
 
-        new_config['scale']['com_port'] = self.com_port_input.text()
-        new_config['scale']['baud_rate'] = int(self.com_baudrate_input.text())
-        new_config['scale']['bytesize'] = int(self.com_bytesize_input.text())
-        new_config['scale']['parity'] = self.com_parity_input.text()
-        new_config['scale']['stop_bits'] = float(self.com_stopbits_input.text())
-        new_config['scale']['timeout'] = self.com_timeout_input.value()
+        self._config.config['scale']['com_port'] = self.com_port_input.text()
+        self._config.config['scale']['baud_rate'] = int(self.com_baudrate_input.text())
+        self._config.config['scale']['bytesize'] = int(self.com_bytesize_input.text())
+        self._config.config['scale']['parity'] = self.com_parity_input.text()
+        self._config.config['scale']['stop_bits'] = float(self.com_stopbits_input.text())
+        self._config.config['scale']['timeout'] = self.com_timeout_input.value()
 
-        new_config['camera']['qr']['enabled'] = self.cam_enabled_switch.isChecked()
-        new_config['camera']['qr']['type'] = self.cam_type_input.text()
-        new_config['camera']['qr']['webcam']['index'] = self.webcam_index_input.value()
-        new_config['camera']['qr']['rtsp']['url'] = self.rtsp_url_input.text()
+        self._config.config['camera']['qr']['enabled'] = self.cam_enabled_switch.isChecked()
+        self._config.config['camera']['qr']['type'] = self.cam_type_input.text()
+        self._config.config['camera']['qr']['webcam']['index'] = self.webcam_index_input.value()
+        self._config.config['camera']['qr']['rtsp']['url'] = self.rtsp_url_input.text()
         
-        new_config['location_label']['name'] = self.station_name_input.text()
-        new_config['scale_mode']['type'] = self.mode_input.text()
-        new_config['scale_mode']['description'] = self.mode_desc_input.text()
-        new_config['reset_time'] = self.reset_time_input.value()
+        self._config.config['location_label']['name'] = self.station_name_input.text()
+        self._config.config['scale_mode']['type'] = self.mode_input.text()
+        self._config.config['scale_mode']['description'] = self.mode_desc_input.text()
+        self._config.config['reset_time'] = self.reset_time_input.value()
         
         new_pass = self.new_password_input.text()
         confirm_pass = self.confirm_password_input.text()
@@ -300,10 +299,10 @@ class SettingDialog(QDialog):
                 m = MessageBox('Lỗi', 'Mật khẩu mới và mật khẩu xác nhận không khớp!', self)
                 m.exec()
                 return
-            new_config['admin']['password_hash'] = Common.hash_password(new_pass)
+            self._config.config['admin']['password_hash'] = Common.hash_password(new_pass)
 
-        # Lưu config
-        if self._config.save_config(new_config):
+        # Lưu config mà không cần truyền tham số
+        if self._config.save_config():
             self.settings_saved.emit()
             
             # ✨ SỬA LỖI: Đóng dialog TRƯỚC khi hiển thị thông báo
@@ -311,10 +310,12 @@ class SettingDialog(QDialog):
             main_window = self.parent() 
             self.accept()
             
-            # Hiển thị thông báo thành công trên cửa sổ chính
-            MessageBox.success('Thành công', 'Đã lưu cài đặt!', main_window)
+            # Tạo và hiển thị MessageBox thay vì sử dụng phương thức tĩnh không tồn tại
+            success_msg = MessageBox('Thành công', 'Đã lưu cài đặt!', main_window)
+            success_msg.exec()
         else:
-            MessageBox.error('Lỗi', 'Không thể lưu file cấu hình!', self)
+            error_msg = MessageBox('Lỗi', 'Không thể lưu file cấu hình!', self)
+            error_msg.exec()
 
     def update_font_size(self, font_size):
         widgets = [

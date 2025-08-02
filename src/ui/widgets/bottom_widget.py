@@ -37,7 +37,7 @@ class BottomWidget(QWidget):
         self.set_weight_status(True, "Khởi tạo...")
 
         self.status_label = BodyLabel("Trạng thái: Sẵn sàng quét mã lệnh.")
-        reset_label = BodyLabel("Đếm ngược reset:")
+        reset_label = BodyLabel("⏱")
         self.reset_progress = ProgressBar(self)
         self.reset_progress.setFixedWidth(150)
         self.reset_progress.setFixedHeight(4)
@@ -106,23 +106,25 @@ class BottomWidget(QWidget):
                 chunk_color = "#f1c40f"  # Vàng khi còn một nửa
             else:
                 chunk_color = "#e74c3c"  # Đỏ khi sắp hết thời gian
-                
-            self.reset_progress.setStyleSheet(f"""
-                QProgressBar {{
-                    border: none;
-                    background: #f0f0f0;
-                    border-radius: 2px;
-                }}
-                QProgressBar::chunk {{
-                    background-color: {chunk_color};
-                    border-radius: 2px;
-                }}
-            """)
-            
-            self.reset_progress.setVisible(True)
-            self.countdown_label.setVisible(True)
         else:
-            self.reset_progress.setValue(0)
-            self.countdown_label.clear()
-            self.reset_progress.setVisible(False)
-            self.countdown_label.setVisible(False)
+            # Hiển thị mặc định khi không có đếm ngược: sẵn sàng với 15s
+            progress_value = 100
+            self.reset_progress.setValue(progress_value)
+            self.countdown_label.setText("15s")
+            chunk_color = "#cccccc"  # Màu xám cho trạng thái chờ
+        
+        self.reset_progress.setStyleSheet(f"""
+            QProgressBar {{
+                border: none;
+                background: #f0f0f0;
+                border-radius: 2px;
+            }}
+            QProgressBar::chunk {{
+                background-color: {chunk_color};
+                border-radius: 2px;
+            }}
+        """)
+        
+        # Luôn hiển thị progress bar và label
+        self.reset_progress.setVisible(True)
+        self.countdown_label.setVisible(True)

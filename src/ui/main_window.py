@@ -4,7 +4,7 @@ from PyQt5.QtCore import QTimer, Qt
 from PyQt5.QtGui import QIcon
 
 from qfluentwidgets import (FluentWindow, FluentIcon as FIF, InfoBar, 
-                            InfoBarPosition, CardWidget)
+                            InfoBarPosition, CardWidget, MessageBoxBase)
 
 from src.config.config_manager import ConfigManager
 from src.data.repository import Repository
@@ -186,6 +186,7 @@ class MainWindow(FluentWindow):
         """Xử lý khi đã cân xong, cho phép quét QR để xác nhận lưu"""
         self.step1.unlock_qr_frame()
         self.is_qr_lock_pending = False
+        # Không restart progress timer ở đây - chỉ mở khóa QR frame
         self.bottom.set_status("Quét lại mã QR để xác nhận lưu kết quả cân", "blue")
 
     def update_reset_progress(self):
@@ -219,6 +220,10 @@ class MainWindow(FluentWindow):
 
         self.sync_thread.sync_status_update.connect(self.handle_sync_status)
 
+        # Thêm kết nối cho cập nhật trạng thái mạng
+        self.sync_thread.network_status_update.connect(self.handle_network_status)
+        self.sync_thread.offline_sync_status.connect(self.handle_offline_sync)
+
         self.controller.update_status_signal.connect(self.bottom.set_status)
         self.controller.update_step1_signal.connect(self.step1.update_info)
         self.controller.update_step2_signal.connect(self.step2.update_info)
@@ -228,6 +233,7 @@ class MainWindow(FluentWindow):
         self.controller.update_mode_signal.connect(self.header.update_mode)
 
         self.controller.inactivity_timer.timeout.connect(self.controller.reset_process)
+        self.controller.network_status_changed.connect(self.header.update_network_status)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -273,6 +279,28 @@ class MainWindow(FluentWindow):
 
     def handle_sync_status(self, message, is_success):
         self.bottom.set_server_status(is_success, message)
+
+    def handle_network_status(self, is_online):
+        """Xử lý khi trạng thái kết nối thay đổi"""
+        # Cập nhật trạng thái mạng trong controller
+        self.controller.set_network_status(is_online)
+        # Cập nhật UI
+        self.header.update_network_status(is_online)
+        
+        if is_online:
+            self.bottom.set_server_status(True, "Kết nối server thành công")
+        else:
+            self.bottom.set_server_status(False, "Mất kết nối server - đang làm việc offline")
+
+    def handle_offline_sync(self, message, pending_count):
+        """Xử lý khi có thông báo đồng bộ offline"""
+        if pending_count > 0:
+            self.header.update_offline_count(pending_count)
+        else:
+            self.header.update_offline_count(0)
+            
+        # Hiển thị thông báo
+        self.bottom.set_status(message, "orange" if pending_count > 0 else "green")
 
     def open_settings(self):
         current_hashed_pass = self.config_manager.get('admin.password_hash', Common.hash_password('admin'))

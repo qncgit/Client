@@ -1,13 +1,13 @@
 {
     "server": {
         "host": "http://118.70.120.55",
-        "port": 8888,
+        "port": 8887,
         "api_token": "H26wPn113vxdd0uMWAhj-YCaqTuFAG_51nF88Jpw",
         "sync_interval": 60
     },
     "scale": {
         "com_port": "COM1",
-        "baud_rate": 9600,
+        "baud_rate": 4800,
         "bytesize": 7,
         "timeout": 1,
         "parity": "N",

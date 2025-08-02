@@ -54,19 +54,5 @@
         "Số điện thoại": "0899231254",
         "Mã lái xe": "022098000465",
         "Label_Mã lái xe": "022098000465 - Trần Công Sơn"
-    },
-    {
-        "Id": 45,
-        "Họ và tên": null,
-        "Năm sinh": null,
-        "Đơn vị": null,
-        "Chức vụ": null,
-        "Quản lý": null,
-        "Mật khẩu": null,
-        "Phân quyền": null,
-        "Trạng thái": null,
-        "Số điện thoại": null,
-        "Mã lái xe": null,
-        "Label_Mã lái xe": " - "
     }
 ]

@@ -145,6 +145,7 @@ class Step1_QRScanWidget(BaseStepWidget):
         """Mở khoá frame QR"""
         self.is_qr_locked = False
         self.last_qr_frame = None
+        # Không có thêm thao tác nào khác ở đây để đảm bảo timer tiếp tục chạy
 
     def reset(self):
         super().reset()
